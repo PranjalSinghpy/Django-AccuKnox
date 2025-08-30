@@ -1,0 +1,30 @@
+Yes, Django signals are executed synchronously. That means when a signal is sent, all the connected receivers run immediately in the same thread one by one before the execution continues.
+import time
+from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+class Student(models.Model):
+    name = models.CharField(max_length=100)
+    age = models.IntegerField()
+
+@receiver(post_save, sender=Student)
+def student_saved(sender, instance, created, **kwargs):
+    print("Signal received")
+    time.sleep(5) 
+    print("Signal executed")
+
+If we run a test case:
+
+from myapp.models import Student
+import time
+start = time.time()
+Student.objects.create(name="Roni", age=25)
+end = time.time()
+print("Total time:", end - start)
+
+Output will be:
+Signal received
+(wait 5 sec...)
+signal executed
+Total time: ~5.0 seconds
