@@ -1,0 +1,39 @@
+Yes, Django signals run inside the same database transaction as the caller.
+This means if we save a model,it runs immediately and synchronously during the transaction.
+But if the transaction is later rolled back, the work done inside the signal handler will also be rolled back.
+That’s why Django also provides transaction.on_commit() when you want your signal to run only after the transaction is successfully committed.
+
+Code:
+
+from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+class Student(models.Model):
+    name = models.CharField(max_length=100)
+    age = models.IntegerField()
+
+class Log(models.Model):
+    message = models.CharField(max_length=200)
+
+@receiver(post_save, sender=Student)
+def student_saved(sender, instance, created, **kwargs):
+    Log.objects.create(message=f"Student saved: {instance.name}")
+    print("Signal executed: Log entry created")
+
+Testing:
+from django.db import transaction
+from myapp.models import Student, Log
+
+try:
+    with transaction.atomic():   # start a transaction
+        Student.objects.create(name="Amit", age=12)
+        raise Exception("Force rollback!")   # rollback happens here
+except:
+    pass
+
+print("Logs in DB:", list(Log.objects.values_list("message", flat=True)))
+
+Output:
+Signal executed: Log entry created
+Logs in DB: []
