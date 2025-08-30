@@ -1,0 +1,40 @@
+Yes, Django signals run in the same thread as the caller.
+That means if you save a model in the main thread, the signal handler also executes in that same thread.
+
+import threading
+import time
+from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+class Student(models.Model):
+    name = models.CharField(max_length=100)
+    age = models.IntegerField()
+
+#Signal handler
+@receiver(post_save, sender=Student)
+def student_saved(sender, instance, created, **kwargs):
+    print(f"Signal handler running in thread: {threading.current_thread().name}")
+    time.sleep(2)
+    print("Signal finished")
+
+Testing:
+python manage.py shell
+
+from myapp.models import Student
+import threading
+import time
+
+print(f"Caller running in thread: {threading.current_thread().name}")
+
+start = time.time()
+Student.objects.create(name="Amit", age=15)
+end = time.time()
+
+print("Total time:", end - start)
+
+Output:
+Caller running in thread: MainThread
+Signal handler running in thread: MainThread
+Signal finished
+Total time: ~2.0 seconds
